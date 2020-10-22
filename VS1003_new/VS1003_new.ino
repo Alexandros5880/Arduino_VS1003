@@ -90,37 +90,16 @@ uint8_t mp3Data[MP3bufferLength];
 
 
 
-void VS1003_await_data_request(void) {
-  while ( !digitalRead(DREQ) );
-}
-
-void VS1003_control_mode_on(void) {
-  //digitalWrite(XDCS,HIGH);
-  digitalWrite(XCS, LOW);
-}
-
-void VS1003_control_mode_off(void) {
-  digitalWrite(XCS, HIGH);
-}
-
-void VS1003_data_mode_on(void) {
-  //digitalWrite(XCS,HIGH);
-  digitalWrite(XDCS, LOW);
-}
-
-void VS1003_data_mode_off(void) {
-  digitalWrite(XDCS, HIGH);
-}
-
-
 
 
 void VS1003_begin(void) {
+  // SD Begin
   pinMode(SS, OUTPUT);
-  digitalWrite (SS, HIGH);  // ss - HIGH
+  digitalWrite (SS, HIGH);
   if (!SD.begin(SS)) {
     Serial.println("SD doesn't begines");
   }
+  // VS1003 Begin
   pinMode(XRES, OUTPUT);
   digitalWrite(XRES, LOW);
   pinMode(XCS, OUTPUT);
@@ -132,7 +111,7 @@ void VS1003_begin(void) {
   SPI.begin();
   SPI.setClockDivider(SPI_CLOCK_DIV64); // Slow!
   digitalWrite(XRES, HIGH);
-  VS1003_await_data_request();
+  while ( !digitalRead(DREQ) );
   VS1003_write_register(SCI_AUDATA, 44101); // 44.1kHz stereo
   VS1003_write_register(SCI_MODE, _BV(SM_SDINEW) | _BV(SM_RESET));
   VS1003_write_register(SCI_CLOCKF, 0xE800); // Experimenting with higher clock settings
@@ -143,15 +122,15 @@ void VS1003_begin(void) {
 
 
 void VS1003_write_register(uint8_t _reg, uint16_t _value) {
-  VS1003_control_mode_on();
+  digitalWrite(XCS, LOW);;
   delayMicroseconds(1); // tXCSS
   SPI.transfer(VS_WRITE_COMMAND); // Write operation
   SPI.transfer(_reg); // Which register
   SPI.transfer(_value >> 8); // Send hi byte
   SPI.transfer(_value & 0xff); // Send lo byte
   delayMicroseconds(1); // tXCSH
-  VS1003_await_data_request();
-  VS1003_control_mode_off();
+  while ( !digitalRead(DREQ) );
+  digitalWrite(XCS, HIGH);
 }
 
 
@@ -160,15 +139,15 @@ void VS1003_write_register(uint8_t _reg, uint16_t _value) {
 
 uint16_t VS1003_read_register(uint8_t _reg) {
   uint16_t result;
-  VS1003_control_mode_on();
+  digitalWrite(XCS, LOW);
   delayMicroseconds(1); // tXCSS
   SPI.transfer(VS_READ_COMMAND); // Read operation
   SPI.transfer(_reg); // Which register
   result = SPI.transfer(0xff) << 8; // read high byte
   result |= SPI.transfer(0xff); // read low byte
   delayMicroseconds(1); // tXCSH
-  VS1003_await_data_request();
-  VS1003_control_mode_off();
+  while ( !digitalRead(DREQ) );
+  digitalWrite(XCS, HIGH);
   return result;
 }
 
@@ -209,7 +188,7 @@ void VS1003_sdi_play(const char * file, const int &volume) {
   int vol = map(volume, 0, 100, 200, 0);
   mp3 = SD.open(file);
   while ( mp3.available() ) {
-    VS1003_await_data_request();
+    while ( !digitalRead(DREQ) );
     delayMicroseconds(3);
     VS1003_setVolume(vol);
     byteCount = mp3.read(mp3Data, 32);
@@ -249,7 +228,9 @@ void VS1003_sdi_play(const char * file, const int &volume) {
 
 
 void setup() {
+  // Serial Begin
   Serial.begin(115200);
+  // VS1003 Begin
   VS1003_begin();
   VS1003_setVolume(1);
   //VS1003_sdi_mic();
