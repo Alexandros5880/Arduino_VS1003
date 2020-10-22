@@ -129,6 +129,7 @@ void setup() {
   digitalWrite(xCs, HIGH);
   digitalWrite(xDcs, HIGH);
   digitalWrite(xReset, HIGH);
+  /*
   // SD Setup
   digitalWrite(sdCs, HIGH);
   while(!SD.begin(sdCs)) {
@@ -146,6 +147,7 @@ void setup() {
   }
   // Write second RIFF header from 504 to 511
   myFile.write(RIFFHeader504fn, sizeof(RIFFHeader504fn));
+  */
   // Initiate SPI
   mySPI.begin();
   mySPI.beginTransaction(SPISettings(250000, MSBFIRST, SPI_MODE0));
@@ -154,11 +156,11 @@ void setup() {
   vs1003_write(SCI_CLOCKF, 0x4430);
   vs1003_write(SCI_AICTRL0, 12);
   delay(100);
-  vs1003_write(SCI_AICTRL1, 1024);
+  vs1003_write(SCI_AICTRL1, 200);
   delay(100);
   vs1003_write(SCI_MODE, 0x1804);
   mySPI.endTransaction();
-  //myFile.close();
+  
 }
 
 
@@ -173,7 +175,8 @@ void setup() {
 
 void loop() {
 
-
+  recording();
+  
 }
 
 
@@ -184,26 +187,6 @@ void loop() {
 
 
 
-/*
-  mySPI.beginTransaction(SPISettings(250000, MSBFIRST, SPI_MODE0));
-  t = vs1003_read(SCI_HDAT1);
-  while(t >= 256 && t < 896) {
-    for(int i=0; i<512; i=i+2) {
-      w = vs1003_read(SCI_HDAT0);
-      db[i] = w >> 8;
-      db[i+1] = w & 0xFF;
-    }
-    mySPI.endTransaction();
-    //myFile.write(db, sizeof(db));
-    t-=256;
-  }
-
-  for (int i = 0; i < 512; i++) {
-    if (db[i] != 0) {
-      Serial.println(db[i]);
-    }
-  }
-*/
 
 
 
@@ -255,9 +238,10 @@ uint16_t vs1003_read(uint8_t _reg) {
   mySPI.transfer(_reg);
   unsigned char response1 = mySPI.transfer(0xFF);
   unsigned char response2 = mySPI.transfer(0xFF);
-  Serial.println(response2);
   digitalWrite(xCs, HIGH);
-  return ((unsigned int) response1 << 8) | (response2 & 0xFF);
+  unsigned int res = ((unsigned int)response1 << 8) | ((unsigned int)response2 & 0xff);
+  Serial.println("Response1: " + String(response1) + "  Response2: " + String(response2));
+  return res;
 }
 
 void vs1003_write(uint8_t _reg, uint16_t _value) {
@@ -288,7 +272,7 @@ void recording() {
       db[i+1] = w & 0xFF;
     }
     mySPI.endTransaction();
-    myFile.write(db, sizeof(db));
+    //myFile.write(db, sizeof(db));
     t-=256;
   }  
 }
@@ -296,7 +280,7 @@ void recording() {
 
 
 
-
+/*
 void updateAndCloseAudioFile() {
   Serial.println(myFile.size());
   myFile.close();
@@ -332,3 +316,4 @@ void updateAndCloseAudioFile() {
   Serial.println(myFile.size());
   myFile.close();
 }
+*/
